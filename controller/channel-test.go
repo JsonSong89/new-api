@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -36,10 +37,15 @@ import (
 )
 
 type testResult struct {
-	context     *gin.Context
-	localErr    error
-	newAPIError *types.NewAPIError
+	context      *gin.Context
+	localErr     error
+	newAPIError  *types.NewAPIError
+	responseBody []byte
 }
+
+const channelTestPrompt = "当前vite最新版本是多少? 无需联网直接返回vite最新版本号即可."
+
+var viteVersionPattern = regexp.MustCompile(`\b\d+\.\d+(?:\.\d+)?\b`)
 
 func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointType string) string {
 	normalized := strings.TrimSpace(endpointType)
@@ -512,9 +518,10 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	})
 	common.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
 	return testResult{
-		context:     c,
-		localErr:    nil,
-		newAPIError: nil,
+		context:      c,
+		localErr:     nil,
+		newAPIError:  nil,
+		responseBody: respBody,
 	}
 }
 
@@ -598,6 +605,29 @@ func readTestResponseBody(body io.ReadCloser, isStream bool) ([]byte, error) {
 	return io.ReadAll(body)
 }
 
+func aggregateTestResponseBody(respBody []byte, isStream bool) string {
+	if !isStream {
+		return string(respBody)
+	}
+
+	var content strings.Builder
+	for _, line := range bytes.Split(respBody, []byte{'\n'}) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 || !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		payload := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if len(payload) == 0 || bytes.Equal(payload, []byte("[DONE]")) {
+			continue
+		}
+		chunk := gjson.GetBytes(payload, "choices.0.delta.content")
+		if chunk.Exists() && chunk.Type == gjson.String {
+			content.WriteString(chunk.String())
+		}
+	}
+	return content.String()
+}
+
 func detectErrorFromTestResponseBody(respBody []byte) error {
 	b := bytes.TrimSpace(respBody)
 	if len(b) == 0 {
@@ -654,13 +684,14 @@ func validateTestResponseBody(respBody []byte, isStream bool) error {
 		return bodyErr
 	}
 	if isStream {
-		return validateStreamTestResponseBody(respBody)
+		if err := validateStreamTestResponseBody(respBody); err != nil {
+			return err
+		}
+	}
+	if !viteVersionPattern.Match(respBody) {
+		return errors.New("upstream response does not contain a Vite version")
 	}
 	return nil
-}
-
-func shouldUseStreamForAutomaticChannelTest(channel *model.Channel) bool {
-	return channel != nil && channel.Type == constant.ChannelTypeCodex
 }
 
 func detectErrorMessageFromJSONBytes(jsonBytes []byte) string {
@@ -693,7 +724,7 @@ func detectErrorMessageFromJSONBytes(jsonBytes []byte) string {
 }
 
 func buildTestRequest(model string, endpointType string, channel *model.Channel, isStream bool) dto.Request {
-	testResponsesInput := json.RawMessage(`[{"role":"user","content":"hi"}]`)
+	testResponsesInput := json.RawMessage(fmt.Sprintf(`[{"role":"user","content":%q}]`, channelTestPrompt))
 
 	// 根据端点类型构建不同的测试请求
 	if endpointType != "" {
@@ -745,7 +776,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Messages: []dto.Message{
 					{
 						Role:    "user",
-						Content: "hi",
+						Content: channelTestPrompt,
 					},
 				},
 				MaxTokens: lo.ToPtr(maxTokens),
@@ -802,7 +833,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		Messages: []dto.Message{
 			{
 				Role:    "user",
-				Content: "hi",
+				Content: channelTestPrompt,
 			},
 		},
 	}
@@ -846,7 +877,10 @@ func TestChannel(c *gin.Context) {
 	//}()
 	testModel := c.Query("model")
 	endpointType := c.Query("endpoint_type")
-	isStream, _ := strconv.ParseBool(c.Query("stream"))
+	isStream := true
+	if streamQuery := c.Query("stream"); streamQuery != "" {
+		isStream, _ = strconv.ParseBool(streamQuery)
+	}
 	testUserID, err := resolveChannelTestUserID(c)
 	if err != nil {
 		common.ApiError(c, err)
@@ -887,6 +921,9 @@ func TestChannel(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"time":    consumedTime,
+		"data": gin.H{
+			"response": aggregateTestResponseBody(result.responseBody, isStream),
+		},
 	})
 }
 
@@ -924,7 +961,7 @@ func performChannelTests(ctx context.Context, channels []*model.Channel, testUse
 		}
 		isChannelEnabled := channel.Status == common.ChannelStatusEnabled
 		tik := time.Now()
-		result := testChannel(ctx, channel, testUserID, "", "", shouldUseStreamForAutomaticChannelTest(channel))
+		result := testChannel(ctx, channel, testUserID, "", "", true)
 		tok := time.Now()
 		milliseconds := tok.Sub(tik).Milliseconds()
 		if ctx != nil && ctx.Err() != nil {

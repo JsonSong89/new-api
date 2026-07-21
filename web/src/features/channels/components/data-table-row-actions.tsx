@@ -106,7 +106,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
     setOpen('test-channel')
   }
 
-  const handleDirectTest = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleDirectTest = async (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation()
     setIsTesting(true)
     try {
@@ -186,28 +186,6 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       )}
 
       <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant='ghost'
-              size='icon-sm'
-              onClick={handleDirectTest}
-              disabled={isTesting}
-              aria-label={t('Test Connection')}
-            />
-          }
-        >
-          {isTesting ? (
-            <Loader2 className='size-4 animate-spin' />
-          ) : (
-            <Gauge className='size-4' />
-          )}
-        </TooltipTrigger>
-        <TooltipContent>{t('Test Connection')}</TooltipContent>
-      </Tooltip>
-
-      {layout === 'card' && (
-        <Tooltip>
           <TooltipTrigger
             render={
               <Button
@@ -224,8 +202,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <PlugZap className='size-4' />
           </TooltipTrigger>
           <TooltipContent>{t('Test Channel Connection')}</TooltipContent>
-        </Tooltip>
-      )}
+      </Tooltip>
 
       <Tooltip>
         <TooltipTrigger
@@ -273,11 +250,15 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Test Connection */}
-          <DropdownMenuItem onClick={handleTest}>
+          {/* Quick Connection Test */}
+          <DropdownMenuItem onClick={handleDirectTest} disabled={isTesting}>
             {t('Test Connection')}
             <DropdownMenuShortcut>
-              <PlugZap size={16} />
+              {isTesting ? (
+                <Loader2 size={16} className='animate-spin' />
+              ) : (
+                <Gauge size={16} />
+              )}
             </DropdownMenuShortcut>
           </DropdownMenuItem>
 

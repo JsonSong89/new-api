@@ -17,9 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
-import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { GitBranch, KeyRound, Pencil, Power, PowerOff, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
@@ -35,12 +37,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { updateChannel, updateChannelStatus } from '@/features/channels/api'
+import { CHANNEL_STATUS } from '@/features/channels/constants'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-import { LOG_TYPE_ALL_VALUE } from '../../constants'
+import { LOG_TYPE_ALL_VALUE, LOG_TYPE_ENUM } from '../../constants'
 import type { UsageLog } from '../../data/schema'
 import {
   formatModelName,
@@ -97,6 +100,126 @@ function splitQuotaDisplay(value: string): { prefix: string; amount: string } {
   const match = value.match(/^([^0-9+\-.,\s]+)(.+)$/)
   if (!match) return { prefix: '', amount: value }
   return { prefix: match[1], amount: match[2] }
+}
+
+function LogChannelActionsCell({ log }: { log: UsageLog }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [busy, setBusy] = useState(false)
+
+  if (
+    log.channel <= 0 ||
+    (log.type !== LOG_TYPE_ENUM.CONSUME && log.type !== LOG_TYPE_ENUM.ERROR)
+  ) {
+    return null
+  }
+
+  const isChannelEnabled = log.channel_status === CHANNEL_STATUS.ENABLED
+  const nextStatus = isChannelEnabled
+    ? CHANNEL_STATUS.MANUAL_DISABLED
+    : CHANNEL_STATUS.ENABLED
+  const statusLabel = isChannelEnabled ? t('Disable') : t('Enable')
+
+  const toggleChannel = async () => {
+    if (
+      !window.confirm(
+        isChannelEnabled ? t('Confirm disable') : t('Confirm enable')
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    try {
+      const response = await updateChannelStatus(log.channel, nextStatus)
+      if (response.success) {
+        toast.success(
+          isChannelEnabled
+            ? t('Channel disabled successfully')
+            : t('Channel enabled successfully')
+        )
+        await queryClient.invalidateQueries({ queryKey: ['channels'] })
+      } else {
+        toast.error(response.message || t('Failed to update channel'))
+      }
+    } catch {
+      toast.error(t('Failed to update channel'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const editPriority = async () => {
+    const value = window.prompt(t('Priority'), '0')
+    if (value === null) return
+    const priority = Number(value)
+    if (!Number.isInteger(priority)) {
+      toast.error(t('Port must be a positive integer'))
+      return
+    }
+    setBusy(true)
+    try {
+      const response = await updateChannel(log.channel, { priority })
+      if (response.success) {
+        toast.success(t('Channel updated successfully'))
+        await queryClient.invalidateQueries({ queryKey: ['channels'] })
+      } else {
+        toast.error(response.message || t('Failed to update channel'))
+      }
+    } catch {
+      toast.error(t('Failed to update channel'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className='flex items-center gap-1'>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type='button'
+                className='hover:bg-muted inline-flex size-7 items-center justify-center rounded-md disabled:opacity-50'
+                aria-label={statusLabel}
+                disabled={busy}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void toggleChannel()
+                }}
+              />
+            }
+          >
+            {isChannelEnabled ? (
+              <PowerOff className='text-destructive size-4' />
+            ) : (
+              <Power className='text-success size-4' />
+            )}
+          </TooltipTrigger>
+          <TooltipContent>{statusLabel}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type='button'
+                className='hover:bg-muted inline-flex size-7 items-center justify-center rounded-md disabled:opacity-50'
+                aria-label={t('Priority')}
+                disabled={busy}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void editPriority()
+                }}
+              />
+            }
+          >
+            <Pencil className='size-4' />
+          </TooltipTrigger>
+          <TooltipContent>{t('Priority')}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  )
 }
 
 function buildDetailSegments(
@@ -374,6 +497,14 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                       size='sm'
                       showDot={false}
                       className='font-mono'
+                    />
+                    <StatusBadge
+                      label={`${t('Priority')}: ${log.channel_priority}`}
+                      size='sm'
+                      showDot={false}
+                      copyable={false}
+                      variant='neutral'
+                      className='font-mono text-xs'
                     />
                     {showMultiKeyIndex && (
                       <StatusBadge
@@ -832,6 +963,16 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
       maxSize: 200,
     }
   )
+
+  if (isAdmin) {
+    columns.push({
+      id: 'channel-actions',
+      header: t('Actions'),
+      cell: ({ row }) => <LogChannelActionsCell log={row.original} />,
+      enableSorting: false,
+      size: 96,
+    })
+  }
 
   return columns
 }

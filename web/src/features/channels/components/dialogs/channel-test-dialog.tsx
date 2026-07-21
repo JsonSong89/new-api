@@ -121,6 +121,7 @@ type TestResult = {
   completedAt?: number
   error?: string
   errorCode?: string
+  response?: string
 }
 
 type BatchProgress = {
@@ -333,7 +334,7 @@ function ChannelTestDialogContent({
     typeof toast.loading
   > | null>(null)
   const [endpointType, setEndpointType] = useState('auto')
-  const [isStreamTest, setIsStreamTest] = useState(false)
+  const [isStreamTest, setIsStreamTest] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -400,7 +401,7 @@ function ChannelTestDialogContent({
   const resetState = useCallback(() => {
     batchStopRequestedRef.current = true
     setEndpointType('auto')
-    setIsStreamTest(false)
+    setIsStreamTest(true)
     setSearchTerm('')
     setTestResults({})
     setRowSelection({})
@@ -564,7 +565,7 @@ function ChannelTestDialogContent({
             stream: effectiveStreamTest || undefined,
             silent,
           },
-          (success, responseTime, error, errorCode) => {
+          (success, responseTime, error, errorCode, response) => {
             const completedAt = Date.now()
             finalResult = {
               status: success ? 'success' : 'error',
@@ -572,6 +573,7 @@ function ChannelTestDialogContent({
               completedAt,
               error,
               errorCode,
+              response,
             }
             updateTestResult(model, finalResult)
           }
@@ -1240,12 +1242,19 @@ function TestResultCell({
   }
 
   if (result.status === 'success') {
-    return typeof result.responseTime === 'number' ? (
-      <span className='text-muted-foreground text-sm'>
-        {formatResponseTime(result.responseTime, t)}
-      </span>
-    ) : (
-      <span className='text-muted-foreground text-sm'>-</span>
+    return (
+      <div className='flex min-w-0 flex-col gap-1'>
+        <span className='text-muted-foreground text-sm'>
+          {typeof result.responseTime === 'number'
+            ? formatResponseTime(result.responseTime, t)
+            : '-'}
+        </span>
+        {result.response && (
+          <span className='text-muted-foreground line-clamp-2 max-w-80 text-xs break-all'>
+            {result.response}
+          </span>
+        )}
+      </div>
     )
   }
 

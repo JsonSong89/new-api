@@ -187,6 +187,7 @@ export interface ChannelTestResponse {
   data?: {
     response_time?: number
     error?: string
+    response?: string
   }
 }
 
