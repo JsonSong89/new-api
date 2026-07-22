@@ -43,7 +43,7 @@ type testResult struct {
 	responseBody []byte
 }
 
-const channelTestPrompt = "当前vite最新版本是多少? 无需联网直接返回vite最新版本号即可."
+const channelTestPrompt = "无需联网,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
 
 var viteVersionPattern = regexp.MustCompile(`\b\d+\.\d+(?:\.\d+)?\b`)
 
