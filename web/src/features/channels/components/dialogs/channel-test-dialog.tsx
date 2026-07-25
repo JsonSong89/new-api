@@ -227,6 +227,8 @@ type FailureDetailsState = {
   details: string
 }
 
+type TestDetailsState = FailureDetailsState
+
 function sleep(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms))
 }
@@ -351,7 +353,7 @@ function ChannelTestDialogContent({
     useState(false)
   const [isDeletingFailed, setIsDeletingFailed] = useState(false)
   const [failureDetails, setFailureDetails] =
-    useState<FailureDetailsState | null>(null)
+    useState<TestDetailsState | null>(null)
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 30,
@@ -1224,7 +1226,7 @@ function TestResultCell({
 }: {
   result?: TestResult
   model: string
-  onOpenDetails: (details: FailureDetailsState) => void
+  onOpenDetails: (details: TestDetailsState) => void
 }) {
   const { t } = useTranslation()
 
@@ -1249,11 +1251,27 @@ function TestResultCell({
             ? formatResponseTime(result.responseTime, t)
             : '-'}
         </span>
-        {result.response && (
+        {result.response ? (
           <span className='text-muted-foreground line-clamp-2 max-w-80 text-xs break-all'>
             {result.response}
           </span>
-        )}
+        ) : null}
+        <Button
+            variant='ghost'
+            size='sm'
+            className='h-7 w-fit px-2 text-xs'
+            aria-haspopup='dialog'
+            onClick={() =>
+              onOpenDetails({
+                model,
+                summary: t('Success'),
+                details: result.response || t('Success'),
+              })
+            }
+          >
+            <Info className='mr-1 h-3 w-3 shrink-0' />
+            {t('Details')}
+        </Button>
       </div>
     )
   }
@@ -1274,7 +1292,7 @@ function FailureResultContent({
 }: {
   result: TestResult
   model: string
-  onOpenDetails: (details: FailureDetailsState) => void
+  onOpenDetails: (details: TestDetailsState) => void
 }) {
   const { t } = useTranslation()
   const errorText = result.error?.trim()
@@ -1308,18 +1326,22 @@ function FailureResultContent({
             {t('Go to Settings')}
           </Button>
         )}
-        {details && (
-          <Button
+        <Button
             variant='ghost'
             size='sm'
             className='h-7 w-fit px-2 text-xs'
             aria-haspopup='dialog'
-            onClick={() => onOpenDetails({ model, summary, details })}
+            onClick={() =>
+              onOpenDetails({
+                model,
+                summary,
+                details: details || errorText || summary,
+              })
+            }
           >
             <Info className='mr-1 h-3 w-3 shrink-0' />
             {t('Details')}
           </Button>
-        )}
       </div>
     </div>
   )
@@ -1329,7 +1351,7 @@ function FailureDetailsSheet({
   details,
   onOpenChange,
 }: {
-  details: FailureDetailsState | null
+  details: TestDetailsState | null
   onOpenChange: (open: boolean) => void
 }) {
   const { t } = useTranslation()
@@ -1363,7 +1385,7 @@ function FailureDetailsSheet({
               </section>
               <section className='space-y-1'>
                 <div className='text-muted-foreground text-xs font-medium'>
-                  {t('Failed')}
+                  {t('Result')}
                 </div>
                 <p className='text-muted-foreground text-sm leading-relaxed wrap-break-word'>
                   {details.summary}

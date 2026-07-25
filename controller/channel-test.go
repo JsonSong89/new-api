@@ -58,6 +58,16 @@ func normalizeChannelTestEndpoint(channel *model.Channel, modelName, endpointTyp
 	if channel != nil && channel.Type == constant.ChannelTypeCodex {
 		return string(constant.EndpointTypeOpenAIResponse)
 	}
+	if channel != nil && channel.Type == constant.ChannelTypeAnthropic {
+		return string(constant.EndpointTypeAnthropic)
+	}
+	if channel != nil {
+		if apiType, ok := common.ChannelType2APIType(channel.Type); ok &&
+			apiType == constant.APITypeOpenAI &&
+			strings.HasPrefix(strings.ToLower(modelName), "gpt-5") {
+			return string(constant.EndpointTypeOpenAIResponse)
+		}
+	}
 	return normalized
 }
 
@@ -378,7 +388,17 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		}
 	default:
 		// Chat/Completion 等其他请求类型
-		if generalReq, ok := request.(*dto.GeneralOpenAIRequest); ok {
+		if info.RelayFormat == types.RelayFormatClaude {
+			if claudeReq, ok := request.(*dto.ClaudeRequest); ok {
+				convertedRequest, err = adaptor.ConvertClaudeRequest(c, info, claudeReq)
+			} else {
+				return testResult{
+					context:     c,
+					localErr:    errors.New("invalid Claude request type"),
+					newAPIError: types.NewError(errors.New("invalid Claude request type"), types.ErrorCodeConvertRequestFailed),
+				}
+			}
+		} else if generalReq, ok := request.(*dto.GeneralOpenAIRequest); ok {
 			convertedRequest, err = adaptor.ConvertOpenAIRequest(c, info, generalReq)
 		} else {
 			return testResult{
@@ -765,6 +785,14 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Input: testResponsesInput,
 			}
 		case constant.EndpointTypeAnthropic, constant.EndpointTypeGemini, constant.EndpointTypeOpenAI:
+			if constant.EndpointType(endpointType) == constant.EndpointTypeAnthropic {
+				return &dto.ClaudeRequest{
+					Model:     model,
+					Messages:  []dto.ClaudeMessage{{Role: "user", Content: channelTestPrompt}},
+					MaxTokens: lo.ToPtr(uint(16)),
+					Stream:    lo.ToPtr(isStream),
+				}
+			}
 			// 返回 GeneralOpenAIRequest
 			maxTokens := uint(16)
 			if constant.EndpointType(endpointType) == constant.EndpointTypeGemini {

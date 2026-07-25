@@ -296,6 +296,9 @@ export interface ChannelTestParams {
 
 export interface CopyChannelParams {
   suffix?: string
+  name?: string
+  base_url?: string
+  key?: string
   reset_balance?: boolean
 }
 

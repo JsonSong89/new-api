@@ -1396,6 +1396,9 @@ func GetTagModels(c *gin.Context) {
 // Optional query params:
 //
 //	suffix         - string appended to the original name (default "_复制")
+//	name           - explicit name for the copied channel; overrides suffix
+//	base_url       - explicit base URL for the copied channel
+//	key            - explicit key for the copied channel
 //	reset_balance  - bool, when true will reset balance & used_quota to 0 (default true)
 func CopyChannel(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -1405,6 +1408,9 @@ func CopyChannel(c *gin.Context) {
 	}
 
 	suffix := c.DefaultQuery("suffix", "_复制")
+	name := strings.TrimSpace(c.Query("name"))
+	baseURL := strings.TrimSpace(c.Query("base_url"))
+	key := strings.TrimSpace(c.Query("key"))
 	resetBalance := true
 	if rbStr := c.DefaultQuery("reset_balance", "true"); rbStr != "" {
 		if v, err := strconv.ParseBool(rbStr); err == nil {
@@ -1425,6 +1431,15 @@ func CopyChannel(c *gin.Context) {
 	clone.Id = 0     // let DB auto-generate
 	clone.CreatedTime = common.GetTimestamp()
 	clone.Name = origin.Name + suffix
+	if name != "" {
+		clone.Name = name
+	}
+	if baseURL != "" {
+		clone.BaseURL = &baseURL
+	}
+	if key != "" {
+		clone.Key = key
+	}
 	clone.TestTime = 0
 	clone.ResponseTime = 0
 	if resetBalance {

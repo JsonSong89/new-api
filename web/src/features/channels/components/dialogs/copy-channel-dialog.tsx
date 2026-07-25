@@ -43,6 +43,9 @@ export function CopyChannelDialog({
   const { currentRow } = useChannels()
   const queryClient = useQueryClient()
   const [suffix, setSuffix] = useState('_copy')
+  const [name, setName] = useState('')
+  const [baseURL, setBaseURL] = useState('')
+  const [key, setKey] = useState('')
   const [resetBalance, setResetBalance] = useState(true)
   const [isCopying, setIsCopying] = useState(false)
 
@@ -55,12 +58,18 @@ export function CopyChannelDialog({
       currentRow.id,
       {
         suffix,
+        ...(name.trim() ? { name: name.trim() } : {}),
+        ...(baseURL.trim() ? { base_url: baseURL.trim() } : {}),
+        ...(key.trim() ? { key: key.trim() } : {}),
         reset_balance: resetBalance,
       },
       queryClient,
       () => {
         onOpenChange(false)
         setSuffix('_copy')
+        setName('')
+        setBaseURL('')
+        setKey('')
         setResetBalance(true)
       }
     )
@@ -99,6 +108,22 @@ export function CopyChannelDialog({
     >
       <div className='space-y-4 py-4'>
         <div className='space-y-2'>
+          <Label htmlFor='copy-name'>{t('New Channel Name')}</Label>
+          <Input
+            id='copy-name'
+            placeholder={t('Optional')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isCopying}
+          />
+          <p className='text-muted-foreground text-xs'>
+            {name.trim()
+              ? t('The copied channel will use this name.')
+              : `${t('New name will be:')} ${currentRow.name}${suffix}`}
+          </p>
+        </div>
+
+        <div className='space-y-2'>
           <Label htmlFor='suffix'>{t('Name Suffix')}</Label>
           <Input
             id='suffix'
@@ -111,6 +136,29 @@ export function CopyChannelDialog({
             {t('New name will be:')} {currentRow.name}
             {suffix}
           </p>
+        </div>
+
+        <div className='space-y-2'>
+          <Label htmlFor='copy-base-url'>{t('New Channel URL')}</Label>
+          <Input
+            id='copy-base-url'
+            placeholder={currentRow.base_url || t('Optional')}
+            value={baseURL}
+            onChange={(e) => setBaseURL(e.target.value)}
+            disabled={isCopying}
+          />
+        </div>
+
+        <div className='space-y-2'>
+          <Label htmlFor='copy-key'>{t('New Channel Key')}</Label>
+          <Input
+            id='copy-key'
+            type='password'
+            placeholder={t('Optional')}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            disabled={isCopying}
+          />
         </div>
 
         <div className='flex items-center space-x-2'>
