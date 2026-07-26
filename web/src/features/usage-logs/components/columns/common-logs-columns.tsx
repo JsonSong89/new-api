@@ -97,12 +97,9 @@ function getGroupRatio(other: LogOtherData | null): number | null {
   return null
 }
 
-function splitQuotaDisplay(value: string): { prefix: string; amount: string } {
-  const match = value.match(/^([^0-9+\-.,\s]+)(.+)$/)
-  if (!match) return { prefix: '', amount: value }
-  return { prefix: match[1], amount: match[2] }
-}
-
+// This cell is colocated with the column definition so it can share the log
+// row contract and the existing channel mutation/query helpers.
+// oxlint-disable-next-line react/only-export-components
 function LogChannelActionsCell({ log }: { log: UsageLog }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
