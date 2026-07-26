@@ -51,7 +51,6 @@ func TestRedactChannelTestHeaders(t *testing.T) {
 		"X-Api-Key":     []string{"secret"},
 		"Content-Type":  []string{"application/json"},
 	}
-
 	redacted := redactChannelTestHeaders(headers)
 	require.Equal(t, "[REDACTED]", redacted["Authorization"])
 	require.Equal(t, "[REDACTED]", redacted["X-Api-Key"])
