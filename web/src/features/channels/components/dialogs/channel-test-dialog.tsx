@@ -122,6 +122,7 @@ type TestResult = {
   error?: string
   errorCode?: string
   response?: string
+  details?: Record<string, unknown>
 }
 
 type BatchProgress = {
@@ -567,7 +568,7 @@ function ChannelTestDialogContent({
             stream: effectiveStreamTest || undefined,
             silent,
           },
-          (success, responseTime, error, errorCode, response) => {
+          (success, responseTime, error, errorCode, response, details) => {
             const completedAt = Date.now()
             finalResult = {
               status: success ? 'success' : 'error',
@@ -576,6 +577,7 @@ function ChannelTestDialogContent({
               error,
               errorCode,
               response,
+              details,
             }
             updateTestResult(model, finalResult)
           }
@@ -1265,7 +1267,9 @@ function TestResultCell({
               onOpenDetails({
                 model,
                 summary: t('Success'),
-                details: result.response || t('Success'),
+                details: result.details
+                  ? JSON.stringify(result.details, null, 2)
+                  : result.response || t('Success'),
               })
             }
           >

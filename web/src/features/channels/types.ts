@@ -188,6 +188,7 @@ export interface ChannelTestResponse {
     response_time?: number
     error?: string
     response?: string
+    details?: Record<string, unknown>
   }
 }
 

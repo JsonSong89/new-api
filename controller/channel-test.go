@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,10 +38,16 @@ import (
 )
 
 type testResult struct {
-	context      *gin.Context
-	localErr     error
-	newAPIError  *types.NewAPIError
-	responseBody []byte
+	context         *gin.Context
+	localErr        error
+	newAPIError     *types.NewAPIError
+	responseBody    []byte
+	requestURL      string
+	requestMethod   string
+	requestHeaders  map[string]string
+	requestBody     []byte
+	responseStatus  int
+	responseHeaders map[string]string
 }
 
 const channelTestPrompt = "无需联网,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
@@ -537,12 +544,61 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		Other:            other,
 	})
 	common.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
-	return testResult{
-		context:      c,
-		localErr:     nil,
-		newAPIError:  nil,
-		responseBody: respBody,
+	requestURL := ""
+	requestMethod := http.MethodPost
+	var requestHeaders, responseHeaders map[string]string
+	responseStatus := 0
+	if httpResp != nil {
+		responseStatus = httpResp.StatusCode
+		responseHeaders = redactChannelTestHeaders(httpResp.Header)
+		if httpResp.Request != nil {
+			requestURL = redactChannelTestURL(httpResp.Request.URL)
+			requestMethod = httpResp.Request.Method
+			requestHeaders = redactChannelTestHeaders(httpResp.Request.Header)
+		}
 	}
+	return testResult{
+		context:         c,
+		responseBody:    respBody,
+		requestURL:      requestURL,
+		requestMethod:   requestMethod,
+		requestHeaders:  requestHeaders,
+		requestBody:     jsonData,
+		responseStatus:  responseStatus,
+		responseHeaders: responseHeaders,
+	}
+}
+
+func redactChannelTestURL(requestURL *url.URL) string {
+	if requestURL == nil {
+		return ""
+	}
+	redactedURL := *requestURL
+	query := redactedURL.Query()
+	for key := range query {
+		lowerKey := strings.ToLower(key)
+		if strings.Contains(lowerKey, "key") || strings.Contains(lowerKey, "token") || strings.Contains(lowerKey, "secret") {
+			query.Set(key, "[REDACTED]")
+		}
+	}
+	redactedURL.RawQuery = query.Encode()
+	return redactedURL.String()
+}
+
+func redactChannelTestHeaders(headers http.Header) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	redacted := make(map[string]string, len(headers))
+	for key := range headers {
+		value := headers.Get(key)
+		lowerKey := strings.ToLower(key)
+		if strings.Contains(lowerKey, "authorization") || strings.Contains(lowerKey, "api-key") || strings.Contains(lowerKey, "x-api-key") {
+			value = "[REDACTED]"
+		}
+		redacted[key] = value
+	}
+	return redacted
 }
 
 func attachTestBillingRequestInput(info *relaycommon.RelayInfo, request dto.Request) error {
@@ -627,6 +683,12 @@ func readTestResponseBody(body io.ReadCloser, isStream bool) ([]byte, error) {
 
 func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 	if !isStream {
+		for _, path := range []string{"choices.0.message.content", "output_text", "content.0.text", "output.0.content.0.text"} {
+			content := gjson.GetBytes(respBody, path)
+			if content.Exists() && content.Type == gjson.String {
+				return content.String()
+			}
+		}
 		return string(respBody)
 	}
 
@@ -640,12 +702,18 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 		if len(payload) == 0 || bytes.Equal(payload, []byte("[DONE]")) {
 			continue
 		}
-		chunk := gjson.GetBytes(payload, "choices.0.delta.content")
-		if chunk.Exists() && chunk.Type == gjson.String {
-			content.WriteString(chunk.String())
+		for _, path := range []string{"choices.0.delta.content", "delta", "delta.text"} {
+			chunk := gjson.GetBytes(payload, path)
+			if chunk.Exists() && chunk.Type == gjson.String {
+				content.WriteString(chunk.String())
+				break
+			}
 		}
 	}
-	return content.String()
+	if content.Len() > 0 {
+		return content.String()
+	}
+	return string(respBody)
 }
 
 func detectErrorFromTestResponseBody(respBody []byte) error {
@@ -951,6 +1019,15 @@ func TestChannel(c *gin.Context) {
 		"time":    consumedTime,
 		"data": gin.H{
 			"response": aggregateTestResponseBody(result.responseBody, isStream),
+			"details": gin.H{
+				"request_method":   result.requestMethod,
+				"request_url":      result.requestURL,
+				"request_headers":  result.requestHeaders,
+				"request_body":     string(result.requestBody),
+				"response_status":  result.responseStatus,
+				"response_headers": result.responseHeaders,
+				"response_body":    string(result.responseBody),
+			},
 		},
 	})
 }

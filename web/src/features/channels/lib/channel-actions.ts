@@ -282,7 +282,8 @@ export async function handleTestChannel(
     responseTime?: number,
     error?: string,
     errorCode?: string,
-    response?: string
+    response?: string,
+    details?: Record<string, unknown>
   ) => void
 ): Promise<void> {
   const payload =
@@ -319,7 +320,8 @@ export async function handleTestChannel(
         responseTime,
         undefined,
         undefined,
-        response.data?.response
+        response.data?.response,
+        response.data?.details
       )
     } else {
       const errorMsg = response.message || i18next.t(ERROR_MESSAGES.TEST_FAILED)
@@ -335,7 +337,8 @@ export async function handleTestChannel(
         responseTime,
         errorMsg,
         response.error_code,
-        response.data?.response
+        response.data?.response,
+        response.data?.details
       )
     }
   } catch (_error: unknown) {
