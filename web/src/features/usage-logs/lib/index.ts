@@ -41,6 +41,7 @@ export {
   getLogTypeConfig,
   isPerCallBilling,
   getDefaultTimeRange,
+  getDefaultCommonLogsTimeRange,
   buildQueryParams,
   buildBaseParams,
   buildApiParams,

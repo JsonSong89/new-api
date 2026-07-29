@@ -85,6 +85,26 @@ export function getDefaultTimeRange(): { start: Date; end: Date } {
 }
 
 /**
+ * Get the default common-log range. Late-night searches include the whole
+ * following day so the end boundary does not expire shortly after midnight.
+ */
+export function getDefaultCommonLogsTimeRange(now: Date = new Date()): {
+  start: Date
+  end: Date
+} {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  if (now.getHours() >= 23) {
+    end.setDate(end.getDate() + 1)
+  }
+  end.setHours(23, 59, 59, 999)
+
+  return { start, end }
+}
+
+/**
  * Convert milliseconds timestamp to seconds for API
  */
 function timestampToSeconds(ms: number): number {
@@ -115,10 +135,11 @@ export function buildQueryParams(
  */
 function buildTimeRangeParams(
   searchParams: Record<string, unknown>,
-  useMilliseconds: boolean
+  useMilliseconds: boolean,
+  getDefaultRange = getDefaultTimeRange
 ): { start_timestamp?: number; end_timestamp?: number } {
   const hasTimeParams = searchParams.startTime ?? searchParams.endTime
-  const defaultTimeRange = !hasTimeParams ? getDefaultTimeRange() : null
+  const defaultTimeRange = !hasTimeParams ? getDefaultRange() : null
 
   const convertTimestamp = (timestamp: number) =>
     useMilliseconds ? timestamp : timestampToSeconds(timestamp)
@@ -215,7 +236,7 @@ export function buildApiParams(config: {
     ...(searchParams.upstreamRequestId
       ? { upstream_request_id: String(searchParams.upstreamRequestId) }
       : {}),
-    ...buildTimeRangeParams(searchParams, false),
+    ...buildTimeRangeParams(searchParams, false, getDefaultCommonLogsTimeRange),
   }
 
   // Override with column filters if present
