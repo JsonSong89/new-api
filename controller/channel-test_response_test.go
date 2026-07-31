@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +22,25 @@ func TestBuildTestRequestUsesViteVersionPrompt(t *testing.T) {
 	require.Equal(t, channelTestPrompt, request.Messages[0].Content)
 	require.NotNil(t, request.Stream)
 	require.True(t, *request.Stream)
+}
+
+func TestBuildResponsesTestRequestUsesViteVersionPrompt(t *testing.T) {
+	request, ok := buildTestRequest(
+		"gpt-5.6-luna",
+		string(constant.EndpointTypeOpenAIResponse),
+		nil,
+		true,
+	).(*dto.OpenAIResponsesRequest)
+	require.True(t, ok)
+	require.JSONEq(t, `[{"role":"user","content":"`+channelTestPrompt+`"}]`, string(request.Input))
+	require.NotNil(t, request.Stream)
+	require.True(t, *request.Stream)
+}
+
+func TestBuildCodexTestRequestUsesViteVersionPrompt(t *testing.T) {
+	request, ok := buildTestRequest("gpt-5-codex", "", nil, true).(*dto.OpenAIResponsesRequest)
+	require.True(t, ok)
+	require.JSONEq(t, `[{"role":"user","content":"`+channelTestPrompt+`"}]`, string(request.Input))
 }
 
 func TestAggregateTestResponseBodyReturnsAssistantContent(t *testing.T) {
