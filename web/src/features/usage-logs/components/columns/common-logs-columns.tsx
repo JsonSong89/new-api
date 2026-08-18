@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
 import { useQueryClient } from '@tanstack/react-query'
-import { GitBranch, KeyRound, Pencil, Power, PowerOff, Sparkles } from 'lucide-react'
+import { GitBranch, KeyRound, ListOrdered, Power, PowerOff, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -211,7 +211,7 @@ function LogChannelActionsCell({ log }: { log: UsageLog }) {
               />
             }
           >
-            <Pencil className='size-4' />
+            <ListOrdered className='size-4' />
           </TooltipTrigger>
           <TooltipContent>{t('Priority')}</TooltipContent>
         </Tooltip>

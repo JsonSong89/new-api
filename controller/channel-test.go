@@ -50,6 +50,27 @@ type testResult struct {
 	responseHeaders map[string]string
 }
 
+func newChannelTestResult(c *gin.Context, requestBody []byte, httpResp *http.Response, responseBody []byte) testResult {
+	result := testResult{
+		context:       c,
+		requestMethod: http.MethodPost,
+		requestBody:   requestBody,
+		responseBody:  responseBody,
+	}
+	if httpResp == nil {
+		return result
+	}
+
+	result.responseStatus = httpResp.StatusCode
+	result.responseHeaders = redactChannelTestHeaders(httpResp.Header)
+	if httpResp.Request != nil {
+		result.requestURL = redactChannelTestURL(httpResp.Request.URL)
+		result.requestMethod = httpResp.Request.Method
+		result.requestHeaders = redactChannelTestHeaders(httpResp.Request.Header)
+	}
+	return result
+}
+
 const channelTestPrompt = "无需联网,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
 
 var viteVersionPattern = regexp.MustCompile(`\b\d+\.\d+(?:\.\d+)?\b`)
@@ -450,16 +471,21 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonData))
 	resp, err := adaptor.DoRequest(c, info, requestBody)
 	if err != nil {
-		return testResult{
-			context:     c,
-			localErr:    err,
-			newAPIError: types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError),
-		}
+		result := newChannelTestResult(c, jsonData, nil, nil)
+		result.localErr = err
+		result.newAPIError = types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError)
+		return result
 	}
 	var httpResp *http.Response
 	if resp != nil {
 		httpResp = resp.(*http.Response)
 		if httpResp.StatusCode != http.StatusOK {
+			const maxErrorResponseBytes = 64 << 10
+			responseBody, readErr := io.ReadAll(io.LimitReader(httpResp.Body, maxErrorResponseBytes))
+			if readErr != nil {
+				responseBody = []byte(fmt.Sprintf("failed to read upstream response: %v", readErr))
+			}
+			httpResp.Body = io.NopCloser(bytes.NewReader(responseBody))
 			err := service.RelayErrorHandler(c.Request.Context(), httpResp, true)
 			common.SysError(fmt.Sprintf(
 				"channel test bad response: channel_id=%d name=%s type=%d model=%s endpoint_type=%s status=%d err=%v",
@@ -471,44 +497,36 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 				httpResp.StatusCode,
 				err,
 			))
-			return testResult{
-				context:     c,
-				localErr:    err,
-				newAPIError: types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError),
-			}
+			result := newChannelTestResult(c, jsonData, httpResp, responseBody)
+			result.localErr = err
+			result.newAPIError = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
+			return result
 		}
 	}
 	usageA, respErr := adaptor.DoResponse(c, httpResp, info)
+	response := w.Result()
+	respBody, readErr := readTestResponseBody(response.Body, isStream)
+	result := newChannelTestResult(c, jsonData, httpResp, respBody)
+	if readErr != nil {
+		result.localErr = readErr
+		result.newAPIError = types.NewOpenAIError(readErr, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
+		return result
+	}
 	if respErr != nil {
-		return testResult{
-			context:     c,
-			localErr:    respErr,
-			newAPIError: respErr,
-		}
+		result.localErr = respErr
+		result.newAPIError = respErr
+		return result
 	}
 	usage, usageErr := coerceTestUsage(usageA, isStream, info.GetEstimatePromptTokens())
 	if usageErr != nil {
-		return testResult{
-			context:     c,
-			localErr:    usageErr,
-			newAPIError: types.NewOpenAIError(usageErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
-		}
-	}
-	result := w.Result()
-	respBody, err := readTestResponseBody(result.Body, isStream)
-	if err != nil {
-		return testResult{
-			context:     c,
-			localErr:    err,
-			newAPIError: types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError),
-		}
+		result.localErr = usageErr
+		result.newAPIError = types.NewOpenAIError(usageErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+		return result
 	}
 	if bodyErr := validateTestResponseBody(respBody, isStream); bodyErr != nil {
-		return testResult{
-			context:     c,
-			localErr:    bodyErr,
-			newAPIError: types.NewOpenAIError(bodyErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
-		}
+		result.localErr = bodyErr
+		result.newAPIError = types.NewOpenAIError(bodyErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+		return result
 	}
 	info.SetEstimatePromptTokens(usage.PromptTokens)
 
@@ -531,29 +549,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		Other:            other,
 	})
 	common.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
-	requestURL := ""
-	requestMethod := http.MethodPost
-	var requestHeaders, responseHeaders map[string]string
-	responseStatus := 0
-	if httpResp != nil {
-		responseStatus = httpResp.StatusCode
-		responseHeaders = redactChannelTestHeaders(httpResp.Header)
-		if httpResp.Request != nil {
-			requestURL = redactChannelTestURL(httpResp.Request.URL)
-			requestMethod = httpResp.Request.Method
-			requestHeaders = redactChannelTestHeaders(httpResp.Request.Header)
-		}
-	}
-	return testResult{
-		context:         c,
-		responseBody:    respBody,
-		requestURL:      requestURL,
-		requestMethod:   requestMethod,
-		requestHeaders:  requestHeaders,
-		requestBody:     jsonData,
-		responseStatus:  responseStatus,
-		responseHeaders: responseHeaders,
-	}
+	return result
 }
 
 func redactChannelTestURL(requestURL *url.URL) string {
@@ -763,7 +759,7 @@ func validateTestResponseBody(respBody []byte, isStream bool) error {
 			return err
 		}
 	}
-	if !viteVersionPattern.Match(respBody) {
+	if !viteVersionPattern.MatchString(aggregateTestResponseBody(respBody, isStream)) {
 		return errors.New("upstream response does not contain a Vite version")
 	}
 	return nil
@@ -942,6 +938,23 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 	return testRequest
 }
 
+func channelTestResponseData(result testResult, isStream bool) gin.H {
+	aggregatedResponse := aggregateTestResponseBody(result.responseBody, isStream)
+	return gin.H{
+		"response": aggregatedResponse,
+		"details": gin.H{
+			"request_method":   result.requestMethod,
+			"request_url":      result.requestURL,
+			"request_headers":  result.requestHeaders,
+			"request_body":     string(result.requestBody),
+			"response_status":  result.responseStatus,
+			"response_headers": result.responseHeaders,
+			"response_content": aggregatedResponse,
+			"response_body":    string(result.responseBody),
+		},
+	}
+}
+
 func TestChannel(c *gin.Context) {
 	channelId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -987,6 +1000,9 @@ func TestChannel(c *gin.Context) {
 		if result.newAPIError != nil {
 			resp["error_code"] = result.newAPIError.GetErrorCode()
 		}
+		if len(result.responseBody) > 0 || len(result.requestBody) > 0 || result.responseStatus > 0 {
+			resp["data"] = channelTestResponseData(result, isStream)
+		}
 		c.JSON(http.StatusOK, resp)
 		return
 	}
@@ -1007,18 +1023,7 @@ func TestChannel(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"time":    consumedTime,
-		"data": gin.H{
-			"response": aggregateTestResponseBody(result.responseBody, isStream),
-			"details": gin.H{
-				"request_method":   result.requestMethod,
-				"request_url":      result.requestURL,
-				"request_headers":  result.requestHeaders,
-				"request_body":     string(result.requestBody),
-				"response_status":  result.responseStatus,
-				"response_headers": result.responseHeaders,
-				"response_body":    string(result.responseBody),
-			},
-		},
+		"data":    channelTestResponseData(result, isStream),
 	})
 }
 

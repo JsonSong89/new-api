@@ -7,12 +7,21 @@ import (
 
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
 func TestValidateTestResponseBodyRequiresViteVersion(t *testing.T) {
 	require.NoError(t, validateTestResponseBody([]byte(`data: {"text":"Vite 6.1.2"}`), true))
 	require.Error(t, validateTestResponseBody([]byte(`data: {"text":"latest release"}`), true))
+}
+
+func TestValidateTestResponseBodyAcceptsVersionSplitAcrossSSEChunks(t *testing.T) {
+	body := []byte("data: {\"choices\":[{\"delta\":{\"content\":\"6\"}}]}\n\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\".1.2\"}}]}\n\n" +
+		"data: [DONE]\n")
+
+	require.NoError(t, validateTestResponseBody(body, true))
 }
 
 func TestBuildTestRequestUsesViteVersionPrompt(t *testing.T) {
@@ -63,6 +72,23 @@ func TestAggregateTestResponseBodySupportsResponsesAndAnthropicStreams(t *testin
 func TestAggregateTestResponseBodySupportsNonStreamFormats(t *testing.T) {
 	require.Equal(t, "6.3.0", aggregateTestResponseBody([]byte(`{"output_text":"6.3.0"}`), false))
 	require.Equal(t, "6.4.0", aggregateTestResponseBody([]byte(`{"content":[{"type":"text","text":"6.4.0"}]}`), false))
+}
+
+func TestChannelTestResponseDataIncludesHTTPStatusAndAggregatedStream(t *testing.T) {
+	body := []byte("data: {\"choices\":[{\"delta\":{\"content\":\"6\"}}]}\n\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\".1.2\"}}]}\n\n")
+	data := channelTestResponseData(testResult{
+		requestMethod:  http.MethodPost,
+		responseStatus: http.StatusOK,
+		responseBody:   body,
+	}, true)
+
+	require.Equal(t, "6.1.2", data["response"])
+	details, ok := data["details"].(gin.H)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, details["response_status"])
+	require.Equal(t, "6.1.2", details["response_content"])
+	require.Equal(t, string(body), details["response_body"])
 }
 
 func TestRedactChannelTestHeaders(t *testing.T) {

@@ -93,6 +93,7 @@ import {
   formatResponseTime,
   handleTestChannel,
 } from '../../lib'
+import { formatChannelTestDetails } from '../../lib/channel-test-details'
 import type {
   Channel,
   GetChannelsResponse,
@@ -1267,9 +1268,10 @@ function TestResultCell({
               onOpenDetails({
                 model,
                 summary: t('Success'),
-                details: result.details
-                  ? JSON.stringify(result.details, null, 2)
-                  : result.response || t('Success'),
+                details: formatChannelTestDetails(
+                  result.details,
+                  result.response || t('Success')
+                ),
               })
             }
           >
@@ -1339,7 +1341,10 @@ function FailureResultContent({
               onOpenDetails({
                 model,
                 summary,
-                details: details || errorText || summary,
+                details: formatChannelTestDetails(
+                  result.details,
+                  details || errorText || summary
+                ),
               })
             }
           >
