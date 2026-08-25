@@ -14,6 +14,11 @@
   - 修改文件：`web/src/features/channels/components/dialogs/channel-test-dialog.tsx`
   - 修改文件：`web/src/features/channels/lib/channel-actions.ts`、`web/src/features/channels/types.ts`
 
+## 构建镜像
+
+- registry.cn-shanghai.aliyuncs.com/jsonsong-pub/new-api:{version}
+
+
 ## 使用日志
 
 - `/usage-logs/common` 管理员视图增加操作列。

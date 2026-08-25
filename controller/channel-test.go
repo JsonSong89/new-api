@@ -657,7 +657,7 @@ func coerceTestUsage(usageAny any, isStream bool, estimatePromptTokens int) (*dt
 
 func readTestResponseBody(body io.ReadCloser, isStream bool) ([]byte, error) {
 	defer func() { _ = body.Close() }()
-	const maxStreamLogBytes = 8 << 10
+	const maxStreamLogBytes = 64 << 10
 	if isStream {
 		return io.ReadAll(io.LimitReader(body, maxStreamLogBytes))
 	}
@@ -666,9 +666,15 @@ func readTestResponseBody(body io.ReadCloser, isStream bool) ([]byte, error) {
 
 func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 	if !isStream {
-		for _, path := range []string{"choices.0.message.content", "output_text", "content.0.text", "output.0.content.0.text"} {
+		for _, path := range []string{
+			"choices.0.message.content",
+			"choices.0.message.reasoning_content",
+			"output_text",
+			"content.0.text",
+			"output.0.content.0.text",
+		} {
 			content := gjson.GetBytes(respBody, path)
-			if content.Exists() && content.Type == gjson.String {
+			if content.Exists() && content.Type == gjson.String && content.String() != "" {
 				return content.String()
 			}
 		}
@@ -676,6 +682,7 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 	}
 
 	var content strings.Builder
+	var reasoning strings.Builder
 	for _, line := range bytes.Split(respBody, []byte{'\n'}) {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 || !bytes.HasPrefix(line, []byte("data:")) {
@@ -685,16 +692,31 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 		if len(payload) == 0 || bytes.Equal(payload, []byte("[DONE]")) {
 			continue
 		}
+		wroteContent := false
 		for _, path := range []string{"choices.0.delta.content", "delta", "delta.text"} {
 			chunk := gjson.GetBytes(payload, path)
-			if chunk.Exists() && chunk.Type == gjson.String {
+			if chunk.Exists() && chunk.Type == gjson.String && chunk.String() != "" {
 				content.WriteString(chunk.String())
+				wroteContent = true
+				break
+			}
+		}
+		if wroteContent {
+			continue
+		}
+		for _, path := range []string{"choices.0.delta.reasoning_content", "choices.0.delta.reasoning"} {
+			chunk := gjson.GetBytes(payload, path)
+			if chunk.Exists() && chunk.Type == gjson.String && chunk.String() != "" {
+				reasoning.WriteString(chunk.String())
 				break
 			}
 		}
 	}
 	if content.Len() > 0 {
 		return content.String()
+	}
+	if reasoning.Len() > 0 {
+		return reasoning.String()
 	}
 	return string(respBody)
 }

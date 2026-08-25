@@ -59,6 +59,13 @@ func TestAggregateTestResponseBodyReturnsAssistantContent(t *testing.T) {
 	require.Equal(t, "6.0.7", aggregateTestResponseBody(body, true))
 }
 
+func TestAggregateTestResponseBodyUsesReasoningWhenContentIsEmpty(t *testing.T) {
+	body := []byte("data: {\"choices\":[{\"delta\":{\"content\":\"\",\"reasoning_content\":\"We\"}}]}\n\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\"\",\"reasoning_content\":\" need 6.1.2\"}}]}\n\n" +
+		"data: [DONE]\n")
+	require.Equal(t, "We need 6.1.2", aggregateTestResponseBody(body, true))
+}
+
 func TestAggregateTestResponseBodySupportsResponsesAndAnthropicStreams(t *testing.T) {
 	responsesBody := []byte("data: {\"type\":\"response.output_text.delta\",\"delta\":\"6.\"}\n\n" +
 		"data: {\"type\":\"response.output_text.delta\",\"delta\":\"1.0\"}\n\n")
