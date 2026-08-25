@@ -93,7 +93,10 @@ import {
   formatResponseTime,
   handleTestChannel,
 } from '../../lib'
-import { formatChannelTestDetails } from '../../lib/channel-test-details'
+import {
+  buildChannelTestDetailView,
+  type ChannelTestDetailView,
+} from '../../lib/channel-test-details'
 import type {
   Channel,
   GetChannelsResponse,
@@ -223,13 +226,11 @@ type FailureStatusDisplay = {
   details?: string
 }
 
-type FailureDetailsState = {
+type TestDetailsState = {
   model: string
   summary: string
-  details: string
+  view: ChannelTestDetailView
 }
-
-type TestDetailsState = FailureDetailsState
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms))
@@ -1247,16 +1248,33 @@ function TestResultCell({
   }
 
   if (result.status === 'success') {
+    const detailView = buildChannelTestDetailView(
+      result.details,
+      result.response || t('Success')
+    )
     return (
       <div className='flex min-w-0 flex-col gap-1'>
-        <span className='text-muted-foreground text-sm'>
-          {typeof result.responseTime === 'number'
-            ? formatResponseTime(result.responseTime, t)
-            : '-'}
-        </span>
-        {result.response ? (
+        <div className='flex min-w-0 items-center gap-2'>
+          {detailView.statusCode != null ? (
+            <StatusBadge
+              label={String(detailView.statusCode)}
+              variant={
+                detailView.statusCode >= 200 && detailView.statusCode < 300
+                  ? 'success'
+                  : 'danger'
+              }
+              copyable={false}
+            />
+          ) : null}
+          <span className='text-muted-foreground text-sm'>
+            {typeof result.responseTime === 'number'
+              ? formatResponseTime(result.responseTime, t)
+              : '-'}
+          </span>
+        </div>
+        {detailView.responseText ? (
           <span className='text-muted-foreground line-clamp-2 max-w-80 text-xs break-all'>
-            {result.response}
+            {detailView.responseText}
           </span>
         ) : null}
         <Button
@@ -1268,10 +1286,7 @@ function TestResultCell({
               onOpenDetails({
                 model,
                 summary: t('Success'),
-                details: formatChannelTestDetails(
-                  result.details,
-                  result.response || t('Success')
-                ),
+                view: detailView,
               })
             }
           >
@@ -1312,9 +1327,24 @@ function FailureResultContent({
     isModelPriceError,
     modelPriceSummary,
   })
+  const detailView = buildChannelTestDetailView(
+    result.details,
+    details || errorText || summary
+  )
 
   return (
     <div className='flex min-w-0 items-center gap-2 text-xs whitespace-normal'>
+      {detailView.statusCode != null ? (
+        <StatusBadge
+          label={String(detailView.statusCode)}
+          variant={
+            detailView.statusCode >= 200 && detailView.statusCode < 300
+              ? 'success'
+              : 'danger'
+          }
+          copyable={false}
+        />
+      ) : null}
       <p className='text-muted-foreground line-clamp-2 min-w-0 flex-1 leading-snug wrap-break-word'>
         {summary}
       </p>
@@ -1341,10 +1371,7 @@ function FailureResultContent({
               onOpenDetails({
                 model,
                 summary,
-                details: formatChannelTestDetails(
-                  result.details,
-                  details || errorText || summary
-                ),
+                view: detailView,
               })
             }
           >
@@ -1394,28 +1421,75 @@ function FailureDetailsSheet({
               </section>
               <section className='space-y-1'>
                 <div className='text-muted-foreground text-xs font-medium'>
+                  {t('Status Code')}
+                </div>
+                {details.view.statusCode != null ? (
+                  <StatusBadge
+                    label={String(details.view.statusCode)}
+                    variant={
+                      details.view.statusCode >= 200 &&
+                      details.view.statusCode < 300
+                        ? 'success'
+                        : 'danger'
+                    }
+                    copyable={false}
+                  />
+                ) : (
+                  <p className='text-muted-foreground text-sm'>-</p>
+                )}
+              </section>
+              <section className='space-y-1'>
+                <div className='text-muted-foreground text-xs font-medium'>
                   {t('Result')}
                 </div>
                 <p className='text-muted-foreground text-sm leading-relaxed wrap-break-word'>
                   {details.summary}
                 </p>
               </section>
-              <section className='space-y-2'>
+              <section className='space-y-1'>
                 <div className='text-muted-foreground text-xs font-medium'>
-                  {t('Details')}
+                  {t('Response')}
                 </div>
-                <pre className='bg-muted/30 text-muted-foreground m-0 max-w-full rounded-md border p-3 text-xs leading-relaxed wrap-break-word whitespace-pre-wrap'>
-                  {details.details}
-                </pre>
+                <p className='text-sm leading-relaxed wrap-break-word'>
+                  {details.view.responseText}
+                </p>
               </section>
+              {details.view.requestLine ? (
+                <section className='space-y-1'>
+                  <div className='text-muted-foreground text-xs font-medium'>
+                    {t('Request')}
+                  </div>
+                  <p className='text-sm break-all'>{details.view.requestLine}</p>
+                </section>
+              ) : null}
+              {details.view.requestBody ? (
+                <section className='space-y-2'>
+                  <div className='text-muted-foreground text-xs font-medium'>
+                    {t('Request Body')}
+                  </div>
+                  <pre className='bg-muted/30 text-muted-foreground m-0 max-w-full rounded-md border p-3 text-xs leading-relaxed wrap-break-word whitespace-pre-wrap'>
+                    {details.view.requestBody}
+                  </pre>
+                </section>
+              ) : null}
+              {details.view.requestHeaders ? (
+                <section className='space-y-2'>
+                  <div className='text-muted-foreground text-xs font-medium'>
+                    {t('Request Headers')}
+                  </div>
+                  <pre className='bg-muted/30 text-muted-foreground m-0 max-w-full rounded-md border p-3 text-xs leading-relaxed wrap-break-word whitespace-pre-wrap'>
+                    {details.view.requestHeaders}
+                  </pre>
+                </section>
+              ) : null}
             </div>
             <SheetFooter className={sideDrawerFooterClassName('sm:px-5')}>
               <Button
                 variant='outline'
                 className='w-full sm:w-auto'
-                onClick={() => copyToClipboard(details.details)}
+                onClick={() => copyToClipboard(details.view.copyText)}
               >
-                {copiedText === details.details ? (
+                {copiedText === details.view.copyText ? (
                   <Check className='mr-2 h-4 w-4 text-green-600' />
                 ) : (
                   <Copy className='mr-2 h-4 w-4' />
