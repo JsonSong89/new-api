@@ -2544,6 +2544,7 @@
     "Local Estimate (billing-usage-gemini)": "ローカル推定 (billing-usage-gemini)",
     "Local Estimate (billing-usage-openai)": "ローカル推定 (billing-usage-openai)",
     "Local models": "ローカルモデル",
+    "Locate channel #{{id}}": "チャネル #{{id}} を表示",
     "Locations": "場所",
     "Locked": "ロック済み",
     "log": "ログ",

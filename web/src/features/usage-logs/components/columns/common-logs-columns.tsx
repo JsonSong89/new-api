@@ -60,6 +60,7 @@ import {
   isPerCallBilling,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
+import { ChannelIdLink } from '../channel-id-link'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
@@ -488,14 +489,18 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   }
                 >
                   <div className='relative inline-flex w-fit items-center gap-1'>
-                    <StatusBadge
-                      label={channelIdDisplay}
-                      autoColor={String(log.channel)}
-                      copyText={String(log.channel)}
-                      size='sm'
-                      showDot={false}
-                      className='font-mono'
-                    />
+                    {log.channel > 0 ? (
+                      <ChannelIdLink channelId={log.channel} />
+                    ) : (
+                      <StatusBadge
+                        label={channelIdDisplay}
+                        autoColor={String(log.channel)}
+                        copyText={String(log.channel)}
+                        size='sm'
+                        showDot={false}
+                        className='font-mono'
+                      />
+                    )}
                     <StatusBadge
                       label={`${t('Priority')}: ${log.channel_priority}`}
                       size='sm'

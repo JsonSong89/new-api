@@ -33,6 +33,7 @@ import { formatTimestampToDate, formatTokens } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { formatDuration } from '../../lib/format'
+import { ChannelIdLink } from '../channel-id-link'
 import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
 
 /**
@@ -179,16 +180,7 @@ export function createChannelColumn<T>(config: {
       if (!channelId) {
         return <span className='text-muted-foreground/60 text-xs'>-</span>
       }
-      return (
-        <StatusBadge
-          label={`#${channelId}`}
-          autoColor={String(channelId)}
-          copyText={String(channelId)}
-          size='sm'
-          showDot={false}
-          className='font-mono'
-        />
-      )
+      return <ChannelIdLink channelId={channelId} />
     },
     meta: { label: headerLabel },
   }

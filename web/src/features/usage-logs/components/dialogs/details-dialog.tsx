@@ -83,6 +83,7 @@ import {
   isTimingLogType,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
+import { ChannelIdLink } from '../channel-id-link'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
 // to its i18n label key for display in the audit details.
@@ -658,17 +659,15 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <DetailRow
               label={t('Channel')}
               value={
-                <span>
-                  {props.log.channel}
+                <span className='inline-flex flex-wrap items-center gap-1'>
+                  <ChannelIdLink channelId={props.log.channel} />
                   {props.log.channel_name && (
                     <span className='text-muted-foreground'>
-                      {' '}
                       ({props.log.channel_name})
                     </span>
                   )}
                 </span>
               }
-              mono
             />
           )}
 
