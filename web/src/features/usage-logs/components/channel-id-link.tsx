@@ -33,6 +33,7 @@ export function ChannelIdLink(props: {
     <Link
       to='/channels'
       search={{ filter: String(props.channelId) }}
+      preload={false}
       className={cn(
         'focus-visible:ring-ring inline-flex max-w-full min-w-0 rounded-md outline-none focus-visible:ring-2',
         props.className

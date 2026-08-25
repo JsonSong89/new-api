@@ -21,6 +21,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 import { useIsAdmin } from '@/hooks/use-admin'
 
+import type { UsageLog } from '../data/schema'
 import type { ChannelAffinityInfo } from '../types'
 
 export type LogsViewScope = 'all' | 'self'
@@ -34,6 +35,10 @@ interface UsageLogsContextValue {
   setAffinityTarget: (target: ChannelAffinityInfo | null) => void
   affinityDialogOpen: boolean
   setAffinityDialogOpen: (open: boolean) => void
+  detailsLog: UsageLog | null
+  setDetailsLog: (log: UsageLog | null) => void
+  failReason: string | null
+  setFailReason: (reason: string | null) => void
   sensitiveVisible: boolean
   setSensitiveVisible: (visible: boolean) => void
   viewScope: LogsViewScope
@@ -50,8 +55,24 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
   const [affinityTarget, setAffinityTarget] =
     useState<ChannelAffinityInfo | null>(null)
   const [affinityDialogOpen, setAffinityDialogOpen] = useState(false)
+  const [detailsLog, setDetailsLogState] = useState<UsageLog | null>(null)
+  const [failReason, setFailReasonState] = useState<string | null>(null)
   const [sensitiveVisible, setSensitiveVisible] = useState(true)
   const [viewScope, setViewScope] = useState<LogsViewScope>('all')
+
+  const setDetailsLog = (log: UsageLog | null) => {
+    if (log) {
+      setFailReasonState(null)
+    }
+    setDetailsLogState(log)
+  }
+
+  const setFailReason = (reason: string | null) => {
+    if (reason) {
+      setDetailsLogState(null)
+    }
+    setFailReasonState(reason)
+  }
 
   return (
     <UsageLogsContext.Provider
@@ -64,6 +85,10 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         setAffinityTarget,
         affinityDialogOpen,
         setAffinityDialogOpen,
+        detailsLog,
+        setDetailsLog,
+        failReason,
+        setFailReason,
         sensitiveVisible,
         setSensitiveVisible,
         viewScope,

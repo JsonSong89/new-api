@@ -16,7 +16,8 @@
 
 ## 构建镜像
 
-- registry.cn-shanghai.aliyuncs.com/jsonsong-pub/new-api:{version}
+- `ghcr.io/jsonsong89/new-api:{version}`（tag 推送后由 GitHub Actions 构建）
+- 历史镜像：`registry.cn-shanghai.aliyuncs.com/jsonsong-pub/new-api:{version}`
 
 
 ## 使用日志
@@ -69,3 +70,10 @@
 - 合并官方最新代码，保留渠道测试 Vite 版本校验、测试详情展示、渠道复制与使用日志渠道操作等自用功能。
 - 渠道测试详情诊断信息增强。
 - 使用日志中的渠道 ID 可点击跳转到渠道列表并按该 ID 筛选。
+
+## v1.0.9
+
+- 移除官方 Docker Hub / 多平台 Release / Electron / GitCode 构建流程。
+- 推送版本 tag 后由 GitHub Actions 构建并推送 Docker 镜像到 `ghcr.io/jsonsong89/new-api`。
+- 修复使用日志错误详情弹窗打开后立即关闭的问题。
+- 修复使用日志渠道优先级修改弹窗回显始终为 0 的问题。

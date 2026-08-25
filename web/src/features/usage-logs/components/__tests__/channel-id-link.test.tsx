@@ -27,12 +27,14 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
     search,
+    preload,
     children,
     onClick,
     ...rest
   }: {
     to: string
     search?: Record<string, string>
+    preload?: false | 'intent' | 'viewport' | 'render'
     children?: ReactNode
     onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void
     title?: string
@@ -42,7 +44,12 @@ vi.mock('@tanstack/react-router', () => ({
     const params = new URLSearchParams(search)
     const query = params.toString()
     return (
-      <a href={query ? `${to}?${query}` : to} onClick={onClick} {...rest}>
+      <a
+        href={query ? `${to}?${query}` : to}
+        data-preload={preload === false ? 'false' : preload}
+        onClick={onClick}
+        {...rest}
+      >
         {children}
       </a>
     )
@@ -81,6 +88,7 @@ describe('channel ID link', () => {
 
     const link = screen.getByRole('link', { name: 'Locate channel #263' })
     expect(link).toHaveAttribute('href', '/channels?filter=263')
+    expect(link).toHaveAttribute('data-preload', 'false')
     expect(link).toHaveTextContent('#263')
     expect(link).toHaveAttribute('title', 'Locate channel #263')
     link.focus()

@@ -45,6 +45,7 @@ import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_ENUM } from '../../constants'
 import type { UsageLog } from '../../data/schema'
+import { getChannelPriorityPromptValue } from '../../lib/channel-priority'
 import {
   formatModelName,
   getTieredBillingSummary,
@@ -61,7 +62,6 @@ import {
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
 import { ChannelIdLink } from '../channel-id-link'
-import { DetailsDialog } from '../dialogs/details-dialog'
 import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
 import { TimingMetricsCell, StreamTpsCell } from '../timing-metrics-cell'
@@ -137,6 +137,7 @@ function LogChannelActionsCell({ log }: { log: UsageLog }) {
             : t('Channel enabled successfully')
         )
         await queryClient.invalidateQueries({ queryKey: ['channels'] })
+        await queryClient.invalidateQueries({ queryKey: ['logs'] })
       } else {
         toast.error(response.message || t('Failed to update channel'))
       }
@@ -148,7 +149,10 @@ function LogChannelActionsCell({ log }: { log: UsageLog }) {
   }
 
   const editPriority = async () => {
-    const value = window.prompt(t('Priority'), '0')
+    const value = window.prompt(
+      t('Priority'),
+      getChannelPriorityPromptValue(log.channel_priority)
+    )
     if (value === null) return
     const priority = Number(value)
     if (!Number.isInteger(priority)) {
@@ -161,6 +165,7 @@ function LogChannelActionsCell({ log }: { log: UsageLog }) {
       if (response.success) {
         toast.success(t('Channel updated successfully'))
         await queryClient.invalidateQueries({ queryKey: ['channels'] })
+        await queryClient.invalidateQueries({ queryKey: ['logs'] })
       } else {
         toast.error(response.message || t('Failed to update channel'))
       }
@@ -866,7 +871,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
       accessorKey: 'content',
       header: t('Details'),
       cell: function DetailsCell({ row }) {
-        const [dialogOpen, setDialogOpen] = useState(false)
+        const { setDetailsLog } = useUsageLogsContext()
         const log = row.original
         const other = parseLogOther(log.other)
 
@@ -905,22 +910,17 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         }
 
         return (
-          <>
-            <button
-              type='button'
-              className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
-              onClick={() => setDialogOpen(true)}
-              title={t('Click to view full details')}
-            >
-              {detailPreview}
-            </button>
-            <DetailsDialog
-              log={log}
-              isAdmin={isAdmin}
-              open={dialogOpen}
-              onOpenChange={setDialogOpen}
-            />
-          </>
+          <button
+            type='button'
+            className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
+            onClick={(event) => {
+              event.stopPropagation()
+              setDetailsLog(log)
+            }}
+            title={t('Click to view full details')}
+          >
+            {detailPreview}
+          </button>
         )
       },
       size: 180,

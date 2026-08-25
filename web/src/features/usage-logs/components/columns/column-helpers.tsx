@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import type { ColumnDef } from '@tanstack/react-table'
 import { Zap } from 'lucide-react'
 /* eslint-disable react-refresh/only-export-components */
-import { useState } from 'react'
 
 import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
@@ -34,7 +33,7 @@ import { cn } from '@/lib/utils'
 
 import { formatDuration } from '../../lib/format'
 import { ChannelIdLink } from '../channel-id-link'
-import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
+import { useUsageLogsContext } from '../usage-logs-provider'
 
 /**
  * Cache tooltip component for token display
@@ -203,30 +202,26 @@ export function createFailReasonColumn<T>(config: {
     ),
     cell: function FailReasonCell({ row }) {
       const failReason = row.getValue(accessorKey) as string
-      const [dialogOpen, setDialogOpen] = useState(false)
+      const { setFailReason } = useUsageLogsContext()
 
       if (!failReason) {
         return <span className='text-muted-foreground/60 text-xs'>-</span>
       }
 
       return (
-        <>
-          <button
-            type='button'
-            className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
-            onClick={() => setDialogOpen(true)}
-            title={cellTitle}
-          >
-            <span className='truncate leading-snug text-red-600 group-hover:underline dark:text-red-400'>
-              {failReason}
-            </span>
-          </button>
-          <FailReasonDialog
-            failReason={failReason}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-          />
-        </>
+        <button
+          type='button'
+          className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
+          onClick={(event) => {
+            event.stopPropagation()
+            setFailReason(failReason)
+          }}
+          title={cellTitle}
+        >
+          <span className='truncate leading-snug text-red-600 group-hover:underline dark:text-red-400'>
+            {failReason}
+          </span>
+        </button>
       )
     },
     meta: { label: headerLabel },

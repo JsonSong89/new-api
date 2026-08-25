@@ -26,6 +26,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
 import { useSidebarConfig } from '@/hooks/use-sidebar-config'
 
+import { DetailsDialog } from './components/dialogs/details-dialog'
+import { FailReasonDialog } from './components/dialogs/fail-reason-dialog'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   type LogsViewScope,
@@ -70,8 +72,13 @@ function UsageLogsContent() {
     affinityTarget,
     affinityDialogOpen,
     setAffinityDialogOpen,
+    detailsLog,
+    setDetailsLog,
+    failReason,
+    setFailReason,
   } = useUsageLogsContext()
-  const { canManageScope, viewScope, setViewScope } = useLogsViewScope()
+  const { canManageScope, isAdminView, viewScope, setViewScope } =
+    useLogsViewScope()
   const tabNavGroups = useMemo<NavGroup[]>(
     () => [
       {
@@ -163,6 +170,27 @@ function UsageLogsContent() {
         open={userInfoDialogOpen}
         onOpenChange={setUserInfoDialogOpen}
       />
+
+      {detailsLog ? (
+        <DetailsDialog
+          log={detailsLog}
+          isAdmin={isAdminView}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDetailsLog(null)
+          }}
+        />
+      ) : null}
+
+      {failReason ? (
+        <FailReasonDialog
+          failReason={failReason}
+          open
+          onOpenChange={(open) => {
+            if (!open) setFailReason(null)
+          }}
+        />
+      ) : null}
 
       <CacheStatsDialog
         open={affinityDialogOpen}
