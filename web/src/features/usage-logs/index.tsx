@@ -77,7 +77,7 @@ function UsageLogsContent() {
     failReason,
     setFailReason,
   } = useUsageLogsContext()
-  const { canManageScope, isAdminView, viewScope, setViewScope } =
+  const { canManageScope, isAdminView, isRootView, viewScope, setViewScope } =
     useLogsViewScope()
   const tabNavGroups = useMemo<NavGroup[]>(
     () => [
@@ -135,16 +135,16 @@ function UsageLogsContent() {
         <SectionPageLayout.Title>
           {t(pageMeta.titleKey)}
         </SectionPageLayout.Title>
-        {canManageScope && (
-          <SectionPageLayout.Actions>
+        <SectionPageLayout.Actions>
+          {canManageScope && (
             <Tabs value={viewScope} onValueChange={handleViewScopeChange}>
               <TabsList>
                 <TabsTrigger value='all'>{t('All')}</TabsTrigger>
                 <TabsTrigger value='self'>{t('Only Mine')}</TabsTrigger>
               </TabsList>
             </Tabs>
-          </SectionPageLayout.Actions>
-        )}
+          )}
+        </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
           <div className='flex h-full min-h-0 flex-col gap-4'>
             {showTaskSwitcher && (
@@ -175,6 +175,7 @@ function UsageLogsContent() {
         <DetailsDialog
           log={detailsLog}
           isAdmin={isAdminView}
+          isRoot={isRootView}
           open
           onOpenChange={(open) => {
             if (!open) setDetailsLog(null)
