@@ -82,3 +82,9 @@
 
 - 合并官方最新代码，保留渠道测试 Vite 版本校验、测试详情展示、渠道复制与使用日志渠道操作等自用功能。
 - 同步官方 vLLM `thinking_token_budget`、Ollama Claude/Responses 透传、GLM `/v1/responses`、额度计算弃用 int32 以及 Bun 1.4.0。
+
+## v1.0.11
+
+- 合并官方最新代码，保留渠道测试 Vite 版本校验、测试详情展示、渠道复制与使用日志渠道操作等自用功能。
+- 同步官方插件渠道、表达式计费、Passkey 多域名、用量日志改版等更新。
+- 自动渠道测试接入官方并发 worker，仍使用 SSE 与 Vite 版本校验。
