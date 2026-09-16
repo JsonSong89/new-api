@@ -336,20 +336,16 @@ export async function deleteDisabledChannels(): Promise<{
 }
 
 /**
- * Get channel key (requires 2FA verification)
+ * Get channel key. Root auth is required; Passkey/2FA proof is not.
  */
 export async function getChannelKey(
   id: number,
-  proofToken: string,
   signal?: AbortSignal
 ): Promise<{ success: boolean; message?: string; data?: { key: string } }> {
   const res = await api.post(
     `/api/channel/${id}/key`,
     undefined,
-    channelActionConfig({
-      headers: { 'X-Security-Proof': proofToken },
-      signal,
-    })
+    channelActionConfig({ signal })
   )
   return res.data
 }

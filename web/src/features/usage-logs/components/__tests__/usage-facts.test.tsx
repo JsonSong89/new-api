@@ -55,6 +55,8 @@ function makeLog(other: LogOtherData): UsageLog {
     is_stream: false,
     channel: 1,
     channel_name: '',
+    channel_status: 0,
+    channel_priority: 0,
     token_id: 1,
     group: 'default',
     ip: '',

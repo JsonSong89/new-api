@@ -29,6 +29,8 @@ func TestBuildTestRequestUsesViteVersionPrompt(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, request.Messages, 1)
 	require.Equal(t, channelTestPrompt, request.Messages[0].Content)
+	require.NotNil(t, request.MaxTokens)
+	require.Equal(t, channelTestMaxTokens, *request.MaxTokens)
 	require.NotNil(t, request.Stream)
 	require.True(t, *request.Stream)
 }
@@ -42,6 +44,8 @@ func TestBuildResponsesTestRequestUsesViteVersionPrompt(t *testing.T) {
 	).(*dto.OpenAIResponsesRequest)
 	require.True(t, ok)
 	require.JSONEq(t, `[{"role":"user","content":"`+channelTestPrompt+`"}]`, string(request.Input))
+	require.NotNil(t, request.MaxOutputTokens)
+	require.Equal(t, channelTestMaxTokens, *request.MaxOutputTokens)
 	require.NotNil(t, request.Stream)
 	require.True(t, *request.Stream)
 }
@@ -50,6 +54,8 @@ func TestBuildCodexTestRequestUsesViteVersionPrompt(t *testing.T) {
 	request, ok := buildTestRequest("gpt-5-codex", "", nil, true).(*dto.OpenAIResponsesRequest)
 	require.True(t, ok)
 	require.JSONEq(t, `[{"role":"user","content":"`+channelTestPrompt+`"}]`, string(request.Input))
+	require.NotNil(t, request.MaxOutputTokens)
+	require.Equal(t, channelTestMaxTokens, *request.MaxOutputTokens)
 }
 
 func TestAggregateTestResponseBodyReturnsAssistantContent(t *testing.T) {

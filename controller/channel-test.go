@@ -72,6 +72,7 @@ func newChannelTestResult(c *gin.Context, requestBody []byte, httpResp *http.Res
 }
 
 const channelTestPrompt = "无需联网,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
+const channelTestMaxTokens = uint(1024)
 
 var viteVersionPattern = regexp.MustCompile(`\b\d+\.\d+(?:\.\d+)?\b`)
 
@@ -856,9 +857,10 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		case constant.EndpointTypeOpenAIResponse:
 			// 返回 OpenAIResponsesRequest
 			return &dto.OpenAIResponsesRequest{
-				Model:  model,
-				Input:  testResponsesInput,
-				Stream: lo.ToPtr(isStream),
+				Model:           model,
+				Input:           testResponsesInput,
+				Stream:          lo.ToPtr(isStream),
+				MaxOutputTokens: lo.ToPtr(channelTestMaxTokens),
 			}
 		case constant.EndpointTypeOpenAIResponseCompact:
 			// 返回 OpenAIResponsesCompactionRequest
@@ -870,7 +872,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 			return &dto.ClaudeRequest{
 				Model:     model,
 				Stream:    lo.ToPtr(isStream),
-				MaxTokens: lo.ToPtr(uint(16)),
+				MaxTokens: lo.ToPtr(channelTestMaxTokens),
 				Messages: []dto.ClaudeMessage{
 					{
 						Role:    "user",
@@ -900,7 +902,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 						Content: channelTestPrompt,
 					},
 				},
-				MaxTokens: lo.ToPtr(uint(16)),
+				MaxTokens: lo.ToPtr(channelTestMaxTokens),
 			}
 			if isStream {
 				req.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
@@ -933,9 +935,10 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 	// Responses-only models (e.g. codex series)
 	if strings.Contains(strings.ToLower(model), "codex") {
 		return &dto.OpenAIResponsesRequest{
-			Model:  model,
-			Input:  testResponsesInput,
-			Stream: lo.ToPtr(isStream),
+			Model:           model,
+			Input:           testResponsesInput,
+			Stream:          lo.ToPtr(isStream),
+			MaxOutputTokens: lo.ToPtr(channelTestMaxTokens),
 		}
 	}
 
@@ -955,15 +958,15 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 	}
 
 	if dto.IsOpenAIReasoningOModel(model) {
-		testRequest.MaxCompletionTokens = lo.ToPtr(uint(16))
+		testRequest.MaxCompletionTokens = lo.ToPtr(channelTestMaxTokens)
 	} else if strings.Contains(model, "thinking") {
 		if !strings.Contains(model, "claude") {
-			testRequest.MaxTokens = lo.ToPtr(uint(50))
+			testRequest.MaxTokens = lo.ToPtr(channelTestMaxTokens)
 		}
 	} else if strings.Contains(model, "gemini") {
 		testRequest.MaxTokens = lo.ToPtr(uint(3000))
 	} else {
-		testRequest.MaxTokens = lo.ToPtr(uint(16))
+		testRequest.MaxTokens = lo.ToPtr(channelTestMaxTokens)
 	}
 
 	return testRequest

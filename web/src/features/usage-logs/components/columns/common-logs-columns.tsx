@@ -471,7 +471,7 @@ function buildTypeDetailSegments(
 
 export function useCommonLogsColumns(
   isAdmin: boolean,
-  isRoot: boolean
+  _isRoot: boolean
 ): ColumnDef<UsageLog>[] {
   const { t, i18n } = useTranslation()
   const columns: ColumnDef<UsageLog>[] = [
