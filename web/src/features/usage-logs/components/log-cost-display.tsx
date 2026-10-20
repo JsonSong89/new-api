@@ -32,10 +32,36 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { getCurrencyDisplay } from '@/lib/currency'
 import { formatLogQuota } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import { hasToolSurcharge } from '../lib/format'
 import type { LogOtherData } from '../types'
+
+const COST_HEAT_THRESHOLDS = [0.5, 0.1, 0.05, 0.01, 0.005, 0.001] as const
+
+const COST_HEAT_CLASS: Record<string, string> = {
+  '0.5': 'border-destructive/60 bg-destructive/30 text-destructive',
+  '0.1': 'border-destructive/45 bg-destructive/18 text-destructive',
+  '0.05': 'border-warning/55 bg-warning/28 text-warning',
+  '0.01': 'border-warning/40 bg-warning/18 text-warning',
+  '0.005': 'border-warning/25 bg-warning/10 text-warning/80',
+  '0.001': 'border-border/80 bg-muted/50 text-muted-foreground',
+  '0': 'border-border/50 bg-muted/30 text-muted-foreground/70',
+}
+
+function resolveCostHeat(quota: number): { tier: string; className: string } {
+  const quotaPerUnit = getCurrencyDisplay().config.quotaPerUnit
+  const usd = quotaPerUnit > 0 ? quota / quotaPerUnit : 0
+  for (const threshold of COST_HEAT_THRESHOLDS) {
+    if (usd >= threshold) {
+      const tier = String(threshold)
+      return { tier, className: COST_HEAT_CLASS[tier] }
+    }
+  }
+  return { tier: '0', className: COST_HEAT_CLASS['0'] }
+}
 
 interface LogCostDisplayProps {
   quota: number
@@ -100,6 +126,8 @@ export function LogCostDisplay(props: LogCostDisplayProps) {
     source = t('Wallet')
   }
 
+  const costHeat = resolveCostHeat(quota)
+
   return (
     <TooltipProvider>
       <div className='inline-flex w-fit items-center gap-1.5'>
@@ -108,7 +136,11 @@ export function LogCostDisplay(props: LogCostDisplayProps) {
           variant='neutral'
           size='lg'
           copyable={false}
-          className='border-border/80 bg-muted/60 text-foreground rounded-md border font-semibold tabular-nums'
+          data-cost-tier={costHeat.tier}
+          className={cn(
+            'rounded-md border font-semibold tabular-nums',
+            costHeat.className
+          )}
         >
           {source ? (
             <Tooltip>

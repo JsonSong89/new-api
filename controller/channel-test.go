@@ -72,7 +72,7 @@ func newChannelTestResult(c *gin.Context, requestBody []byte, httpResp *http.Res
 	return result
 }
 
-const channelTestPrompt = "无需联网,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
+const channelTestPrompt = "无需联网,不要过多思考,根据你的已有知识库,回答当前vite最新版本是多少? 直接返回版本号,不要有多余内容."
 const channelTestMaxTokens = uint(1024)
 
 var viteVersionPattern = regexp.MustCompile(`\b\d+\.\d+(?:\.\d+)?\b`)

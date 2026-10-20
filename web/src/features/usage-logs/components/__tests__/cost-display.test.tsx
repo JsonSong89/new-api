@@ -127,6 +127,22 @@ describe('log cost display', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
+  test.each([
+    { quota: 250, tier: '0' },
+    { quota: 500, tier: '0.001' },
+    { quota: 2500, tier: '0.005' },
+    { quota: 5000, tier: '0.01' },
+    { quota: 25000, tier: '0.05' },
+    { quota: 50000, tier: '0.1' },
+    { quota: 250000, tier: '0.5' },
+  ])('marks $quota quota units as cost heat tier $tier', ({ quota, tier }) => {
+    renderCost({ quota, other: null })
+
+    expect(
+      screen.getByText(/^\$/).closest('[data-slot="status-badge"]')
+    ).toHaveAttribute('data-cost-tier', tier)
+  })
+
   test('keeps a large amount unabridged in a single-line cost bubble', () => {
     const rendered = renderCost({
       quota: 2147483647,
