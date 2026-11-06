@@ -684,8 +684,8 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 			"content.0.text",
 			"output.0.content.0.text",
 		} {
-			content := gjson.GetBytes(respBody, path)
-			if content.Exists() && content.Type == gjson.String && content.String() != "" {
+			content := ojson.GetBytes(respBody, path)
+			if content.Exists() && content.Type == ojson.String && content.String() != "" {
 				return content.String()
 			}
 		}
@@ -705,8 +705,8 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 		}
 		wroteContent := false
 		for _, path := range []string{"choices.0.delta.content", "delta", "delta.text"} {
-			chunk := gjson.GetBytes(payload, path)
-			if chunk.Exists() && chunk.Type == gjson.String && chunk.String() != "" {
+			chunk := ojson.GetBytes(payload, path)
+			if chunk.Exists() && chunk.Type == ojson.String && chunk.String() != "" {
 				content.WriteString(chunk.String())
 				wroteContent = true
 				break
@@ -716,8 +716,8 @@ func aggregateTestResponseBody(respBody []byte, isStream bool) string {
 			continue
 		}
 		for _, path := range []string{"choices.0.delta.reasoning_content", "choices.0.delta.reasoning"} {
-			chunk := gjson.GetBytes(payload, path)
-			if chunk.Exists() && chunk.Type == gjson.String && chunk.String() != "" {
+			chunk := ojson.GetBytes(payload, path)
+			if chunk.Exists() && chunk.Type == ojson.String && chunk.String() != "" {
 				reasoning.WriteString(chunk.String())
 				break
 			}
