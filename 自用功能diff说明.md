@@ -113,3 +113,9 @@
 - 查看渠道密钥继续仅校验 Root 权限，不再要求 Passkey/2FA。
 - 继续移除官方 Docker Hub / Electron / 多平台 Release 工作流。
 - 同步官方 OpenAI 12h prompt cache 计费、任务插件原生路由、relaykit 工具调用保留、Bun 1.4.4 等更新。
+
+## v1.0.16
+
+- 合并官方最新代码（至 `#8218` / `v1.0.0-rc.48`），保留渠道测试 Vite 版本校验、测试详情展示、渠道复制、使用日志渠道操作与费用档位着色等自用功能。
+- 查看渠道密钥继续仅校验 Root 权限，不再要求 Passkey/2FA。
+- 同步官方 Redis 鉴权缓存完整性、用户/令牌缓存跨槽修复、定价变更预览、Gemini Omni / Kling 任务插件、Vertex v1beta1 开关以及 HTTP/2 健康检查等更新。
